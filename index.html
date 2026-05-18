@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FREE FIRE OFFICIAL - Live Database Store</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    
+    <style>
+        :root { --primary: #ff9900; --dark: #0b0e14; --card: #1c2128; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; background-color: var(--dark); color: white; text-align: center; }
+        header { background: linear-gradient(to bottom, #1a2a6c, #0b0e14); padding: 40px 20px; border-bottom: 2px solid var(--primary); position: relative; }
+        .logo { width: 100px; border-radius: 50%; border: 2px solid var(--primary); margin-bottom: 15px; }
+        .scam-alert { color: var(--primary); font-weight: bold; margin: 20px; text-transform: uppercase; font-size: 0.9rem; }
+        
+        /* Store Grid */
+        .store-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; padding: 20px; max-width: 1200px; margin: 0 auto; }
+        .id-card { background: var(--card); border: 1px solid #30363d; border-radius: 12px; padding: 15px; text-align: left; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.5); cursor: pointer; }
+        .id-card:hover { border-color: var(--primary); transform: translateY(-5px); }
+        .id-img { width: 100%; height: 200px; object-fit: cover; border-radius: 8px; margin-bottom: 10px; border: 1px solid #333; }
+        .id-card h3 { color: var(--primary); margin: 0 0 10px 0; font-size: 1.3rem; }
+        .price { font-size: 1.6rem; font-weight: bold; color: #2ecc71; margin-top: 10px; }
+        
+        .btn-yt { background: #ff0000; color: white; padding: 12px 25px; border-radius: 50px; text-decoration: none; font-weight: bold; display: inline-block; margin-top: 15px; border: 2px solid white; }
+        .btn-buy { background: #ff9900; color: black; padding: 10px; border-radius: 8px; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 15px; font-weight: bold; cursor: pointer; border: none; width: 100%; font-size: 1rem; }
+
+        /* Detail & QR Popup Modal */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 3000; justify-content: center; align-items: center; padding: 10px; box-sizing: border-box; overflow-y: auto; }
+        .modal-content { background: #161b22; padding: 20px; border-radius: 15px; border: 2px solid var(--primary); max-width: 500px; width: 100%; text-align: center; box-sizing: border-box; position: relative; max-height: 95vh; overflow-y: auto; }
+        
+        /* Bada Image Slider */
+        .slider-container { position: relative; width: 100%; height: 280px; margin-bottom: 15px; border-radius: 8px; overflow: hidden; border: 1px solid #444; background: #000; }
+        .slider-img { width: 100%; height: 100%; object-fit: contain; }
+        .slider-btn { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.6); color: white; border: none; padding: 12px 16px; cursor: pointer; font-weight: bold; font-size: 1.3rem; border-radius: 50%; z-index: 10; }
+        .slider-prev { left: 8px; }
+        .slider-next { right: 8px; }
+        .image-counter { position: absolute; bottom: 8px; right: 12px; background: rgba(0,0,0,0.7); padding: 3px 10px; border-radius: 12px; font-size: 0.85rem; font-weight: bold; }
+
+        .qr-img { width: 200px; height: 200px; background: white; padding: 8px; border-radius: 10px; margin: 15px auto; object-fit: contain; display: none; }
+        .notice-text { color: #2ecc71; font-weight: 900; font-size: 1.1rem; margin: 12px 0; text-transform: uppercase; letter-spacing: 1px; }
+        .btn-wa { background: #25D366; color: white; padding: 12px; border-radius: 8px; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: bold; font-size: 1.1rem; margin-top: 15px; display: none; letter-spacing: 1px; }
+
+        /* Admin Styles */
+        #admin-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.98); z-index: 2000; overflow-y: auto; padding: 20px 0; }
+        .admin-box { background: #161b22; width: 95%; max-width: 600px; margin: 0 auto; padding: 25px; border-radius: 15px; border: 1px solid var(--primary); box-sizing: border-box; }
+        input, textarea { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #30363d; background: #0d1117; color: white; box-sizing: border-box; }
+        .admin-btn { background: #2ecc71; color: white; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; }
+        .btn-edit { background: #3498db; margin-bottom: 5px; }
+        .btn-del { background: #e74c3c; }
+        .admin-item { border-bottom: 1px solid #333; padding: 10px 0; display: flex; justify-content: space-between; align-items: center; text-align: left; }
+        
+        /* Secret Clickable Area */
+        .lock-btn { position: absolute; top: 0; right: 0; width: 60px; height: 60px; background: transparent; border: none; cursor: pointer; z-index: 5000; }
+        
+        /* Loading Text Style */
+        .loading-text { font-size: 1.2rem; color: var(--primary); margin: 40px; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <button class="lock-btn" onclick="askPassword(); event.stopPropagation();"></button>
+        <img src="logo.jpg" alt="Logo" class="logo">
+        <h1>FREE FIRE OFFICIAL</h1>
+        <div class="scam-alert">DIRECT SELLER: DEEPAK MEENA | RAJASTHAN</div>
+        <a id="yt-link" href="#" target="_blank" class="btn-yt">🔴 SUBSCRIBE MY CHANNEL</a>
+    </header>
+
+    <section style="padding: 20px;">
+        <h2 style="letter-spacing: 2px;">ID STORE - <span style="color:var(--primary)">LIVE ACCOUNTS</span></h2>
+        <div class="store-container" id="id-display">
+            <div class="loading-text">Loading Items From Firebase Online Database...</div>
+        </div>
+    </section>
+
+    <div id="qr-modal" class="modal" onclick="closeQRModal()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <h3 style="color:var(--primary); margin:0 0 10px 0;" id="modal-id-name">ID Details</h3>
+            
+            <div class="slider-container">
+                <button class="slider-btn slider-prev" onclick="changeSlide(-1)">❮</button>
+                <img src="" id="slider-main-img" class="slider-img">
+                <button class="slider-btn slider-next" onclick="changeSlide(1)">❯</button>
+                <div class="image-counter" id="img-counter">1/1</div>
+            </div>
+
+            <div id="modal-id-details" style="text-align: left; margin-bottom: 15px; background: #0d1117; padding: 12px; border-radius: 8px; font-size: 0.95rem; line-height: 1.4;"></div>
+            <div class="price" id="modal-id-price" style="margin-bottom: 15px;"></div>
+
+            <button id="show-qr-btn" class="btn-buy" onclick="showPaymentQR()">🛒 PROCEED TO PURCHASE</button>
+
+            <img src="" id="modal-qr-img" class="qr-img" alt="Scan to Pay">
+            <div class="notice-text" id="modal-notice" style="display:none;">
+                ⚠️ PAYMENT HOTE HI ID AND PASSWORD APKO MIL JAYEGA!
+            </div>
+            
+            <a href="#" id="modal-wa-btn" target="_blank" class="btn-wa">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="22" height="22">
+                WHATSAPP
+            </a>
+            
+            <button class="admin-btn" style="background:#555; margin-top:15px;" onclick="closeQRModal()">CLOSE</button>
+        </div>
+    </div>
+
+    <div id="admin-overlay">
+        <div class="admin-box">
+            <h2 id="panel-title">Security Check</h2>
+            <div id="pass-section">
+                <input type="password" id="entry-pass" placeholder="Enter Password">
+                <button class="admin-btn" onclick="checkPass()">LOGIN</button>
+            </div>
+
+            <div id="control-section" style="display:none;">
+                <h3 style="color:var(--primary)">YouTube Settings</h3>
+                <input type="text" id="new-yt-url" placeholder="Paste Channel Link">
+                <button class="admin-btn" style="background:#3498db" onclick="updateYT()">Update YouTube Link</button>
+                
+                <hr style="border: 0.5px solid #333; margin: 20px 0;">
+                
+                <h3 style="color:var(--primary)">Add/Edit ID</h3>
+                <input type="hidden" id="edit-id" value="">
+                <input type="text" id="id-name" placeholder="ID Title">
+                <input type="text" id="id-level" placeholder="Level">
+                <input type="text" id="id-price" placeholder="Price">
+                <input type="text" id="id-img-url" placeholder="Photos Links (Comma ',' lagakar multiple links dalein)">
+                <input type="text" id="id-qr-url" placeholder="QR Code Link (ImgBB Direct Link)">
+                <textarea id="id-desc" rows="3" placeholder="Evo Guns, Bundles, etc."></textarea>
+                <button id="save-btn" class="admin-btn" onclick="saveID()">ADD TO STORE</button>
+                
+                <hr style="border: 0.5px solid #333; margin: 20px 0;">
+                <h3 style="color:var(--primary)">Manage Existing IDs</h3>
+                <div id="admin-id-list"></div>
+            </div>
+            <button class="admin-btn" style="background:#444; margin-top:20px;" onclick="closeAdmin()">CLOSE</button>
+        </div>
+    </div>
+
+    <script>
+        // Your Firebase Configuration from the Screenshot
+        const firebaseConfig = {
+            apiKey: "AIzaSyAsbeHstVbYfT7D8bUqYgG45O9E-R96q3c",
+            authDomain: "free-fire-store-9.firebaseapp.com",
+            databaseURL: "https://free-fire-store-9-default-rtdb.firebaseio.com",
+            projectId: "free-fire-store-9",
+            storageBucket: "free-fire-store-9.appspot.com",
+            messagingSenderId: "367188735391",
+            appId: "1:367188735391:web:2a836881cba05f32a26c4a"
+        };
+        
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        let idsArray = [];
+        let ytUrl = 'https://youtube.com';
+        
+        let currentImages = [];
+        let currentSlideIdx = 0;
+        let activeIDObj = null;
+        let slideInterval = null;
+
+        function askPassword() { document.getElementById('admin-overlay').style.display = 'block'; }
+        function closeAdmin() { document.getElementById('admin-overlay').style.display = 'none'; }
+
+        function checkPass() {
+            if(document.getElementById('entry-pass').value === '9075') {
+                document.getElementById('pass-section').style.display = 'none';
+                document.getElementById('control-section').style.display = 'block';
+                document.getElementById('panel-title').innerText = 'Admin Control Active';
+                renderAdminList();
+            } else { alert("Wrong Password!"); }
+        }
+
+        // Fetch YouTube Settings & Store Data Live From Firebase
+        database.ref('yt_url').on('value', (snapshot) => {
+            if(snapshot.exists()) {
+                ytUrl = snapshot.val();
+                document.getElementById('yt-link').href = ytUrl;
+            }
+        });
+
+        database.ref('store_ids').on('value', (snapshot) => {
+            idsArray = [];
+            if(snapshot.exists()) {
+                const data = snapshot.val();
+                for(let key in data) {
+                    idsArray.push({ firebaseKey: key, ...data[key] });
+                }
+            }
+            renderStore();
+            renderAdminList();
+        });
+
+        function updateYT() {
+            const url = document.getElementById('new-yt-url').value;
+            if(url) {
+                database.ref('yt_url').set(url).then(() => {
+                    alert("YouTube Link Updated Online!");
+                });
+            }
+        }
+
+        function saveID() {
+            const fKey = document.getElementById('edit-id').value;
+            const data = {
+                name: document.getElementById('id-name').value,
+                level: document.getElementById('id-level').value,
+                price: document.getElementById('id-price').value,
+                img: document.getElementById('id-img-url').value,
+                qr: document.getElementById('id-qr-url').value || 'https://via.placeholder.com/220?text=No+QR+Set',
+                desc: document.getElementById('id-desc').value
+            };
+
+            if(!data.name || !data.price || !data.img) return alert("Name, Price aur Photo zaroori hai!");
+
+            if(fKey === "") {
+                // Add New ID Online
+                database.ref('store_ids').push(data).then(() => {
+                    alert("ID Added Online Successfully!");
+                    resetForm();
+                });
+            } else {
+                // Update Existing ID Online
+                database.ref('store_ids/' + fKey).set(data).then(() => {
+                    alert("ID Updated Online!");
+                    document.getElementById('edit-id').value = "";
+                    document.getElementById('save-btn').innerText = "ADD TO STORE";
+                    resetForm();
+                });
+            }
+        }
+
+        function editID(fbKey) {
+            const item = idsArray.find(x => x.firebaseKey === fbKey);
+            if(!item) return;
+            document.getElementById('id-name').value = item.name;
+            document.getElementById('id-level').value = item.level;
+            document.getElementById('id-price').value = item.price;
+            document.getElementById('id-img-url').value = item.img;
+            document.getElementById('id-qr-url').value = item.qr || '';
+            document.getElementById('id-desc').value = item.desc;
+            document.getElementById('edit-id').value = fbKey;
+            document.getElementById('save-btn').innerText = "UPDATE ID NOW";
+            alert("Details loaded into form. Modify and tap update!");
+        }
+
+        function deleteID(fbKey) {
+            if(confirm("Kya aap is ID ko permanently delete karna chahte hain?")) {
+                database.ref('store_ids/' + fbKey).remove().then(() => {
+                    alert("ID Deleted From Database!");
+                });
+            }
+        }
+
+        function resetForm() {
+            document.getElementById('id-name').value = '';
+            document.getElementById('id-level').value = '';
+            document.getElementById('id-price').value = '';
+            document.getElementById('id-img-url').value = '';
+            document.getElementById('id-qr-url').value = '';
+            document.getElementById('id-desc').value = '';
+        }
+
+        function openIDDetails(fbKey) {
+            const item = idsArray.find(x => x.firebaseKey === fbKey);
+            if(!item) return;
+            activeIDObj = item;
+            
+            currentImages = item.img.split(',').map(link => link.trim()).filter(link => link.length > 0);
+            currentSlideIdx = 0;
+
+            document.getElementById('modal-id-name').innerText = item.name;
+            document.getElementById('modal-id-details').innerHTML = `<b>⭐ Level:</b> ${item.level}<br><br><b>🔥 Details:</b><br>${item.desc.replace(/\n/g, '<br>')}`;
+            document.getElementById('modal-id-price').innerText = item.price;
+            
+            document.getElementById('modal-qr-img').style.display = 'none';
+            document.getElementById('modal-notice').style.display = 'none';
+            document.getElementById('modal-wa-btn').style.display = 'none';
+            document.getElementById('show-qr-btn').style.display = 'block';
+
+            updateSliderView();
+            
+            clearInterval(slideInterval);
+            if(currentImages.length > 1) {
+                slideInterval = setInterval(() => {
+                    changeSlide(1);
+                }, 2500);
+            }
+
+            document.getElementById('qr-modal').style.display = 'flex';
+        }
+
+        function updateSliderView() {
+            if(currentImages.length === 0) return;
+            document.getElementById('slider-main-img').src = currentImages[currentSlideIdx];
+            document.getElementById('img-counter').innerText = `${currentSlideIdx + 1}/${currentImages.length}`;
+        }
+
+        function changeSlide(direction) {
+            currentSlideIdx += direction;
+            if(currentSlideIdx >= currentImages.length) currentSlideIdx = 0;
+            if(currentSlideIdx < 0) currentSlideIdx = currentImages.length - 1;
+            updateSliderView();
+        }
+
+        function showPaymentQR() {
+            clearInterval(slideInterval);
+            document.getElementById('modal-qr-img').src = activeIDObj.qr;
+            document.getElementById('modal-qr-img').style.display = 'block';
+            document.getElementById('modal-notice').style.display = 'block';
+            
+            const waMsg = window.encodeURIComponent(`Hello Deepak Bhai, maine "${activeIDObj.name}" ke liye ${activeIDObj.price} ka payment kar diya hai. Mujhe ID aur password send karein.`);
+            document.getElementById('modal-wa-btn').href = `https://wa.me/918871196403?text=${waMsg}`;
+            document.getElementById('modal-wa-btn').style.display = 'flex';
+            
+            document.getElementById('show-qr-btn').style.display = 'none';
+        }
+
+        function closeQRModal() {
+            clearInterval(slideInterval);
+            document.getElementById('qr-modal').style.display = 'none';
+        }
+
+        function renderAdminList() {
+            const list = document.getElementById('admin-id-list');
+            if(!list) return;
+            if(idsArray.length === 0) { list.innerHTML = "<p>No IDs uploaded yet.</p>"; return; }
+            list.innerHTML = idsArray.map((item) => `
+                <div class="admin-item">
+                    <div><b>${item.name}</b><br><small>${item.price}</small></div>
+                    <div>
+                        <button class="admin-btn btn-edit" onclick="editID('${item.firebaseKey}'); event.stopPropagation();" style="width:70px; padding:5px;">Edit</button>
+                        <button class="admin-btn btn-del" onclick="deleteID('${item.firebaseKey}'); event.stopPropagation();" style="width:70px; padding:5px;">Del</button>
+                    </div>
+                </div> `).join('');
+        }
+
+        function renderStore() {
+            document.getElementById('yt-link').href = ytUrl;
+            const display = document.getElementById('id-display');
+            if(idsArray.length === 0) { display.innerHTML = "<p style='color:#ccc; padding:30px;'>Store Empty! Open Admin panel from top-right secret area to add your first Free Fire ID.</p>"; return; }
+            
+            // Show latest items on top
+            display.innerHTML = idsArray.slice().reverse().map((item) => {
+                const firstImg = item.img.split(',')[0].trim();
+                return `
+                <div class="id-card" onclick="openIDDetails('${item.firebaseKey}')">
+                    <img src="${firstImg}" class="id-img" onerror="this.src='https://via.placeholder.com/300x180?text=Image+Error'">
+                    <h3>${item.name}</h3>
+                    <p><b>⭐ Level:</b> ${item.level}</p>
+                    <div class="price">${item.price}</div>
+                    <button class="btn-buy" style="margin-top:10px;">
+                        🔍 VIEW DETAILS & BUY
+                    </button>
+                </div>`;
+            }).join('');
+        }
+    </script>
+<
